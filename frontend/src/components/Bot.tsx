@@ -9,12 +9,6 @@ interface BotProps {
   state: BotState;
 }
 
-interface PatrolState {
-  x: number;
-  y: number;
-  rotation: number;
-}
-
 function seededRandom(seed: string) {
   let h = 0;
   for (let i = 0; i < seed.length; i++) {
@@ -75,22 +69,21 @@ function easeInOutCubic(t: number): number {
 }
 
 function headingDeg(from: { x: number; y: number }, to: { x: number; y: number }): number {
-  // atan2 gives 0=right, π/2=down; sprites face up, so +90 offset
   return Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI) - 90;
 }
 
 function shortestAngle(from: number, to: number): number {
-  let d = ((to - from) % 360 + 540) % 360 - 180;
-  return d;
+  return ((to - from) % 360 + 540) % 360 - 180;
 }
 
-function useZonePatrol(zone: Zone, space: Space, spriteSize: number) {
+function useZonePatrol(
+  zone: Zone,
+  space: Space,
+  spriteSize: number,
+  groupRef: React.RefObject<SVGGElement | null>,
+  spriteRef: React.RefObject<SVGImageElement | null>,
+) {
   const rngRef = useRef(seededRandom(zone.id + "_patrol"));
-  const [patrol, setPatrol] = useState<PatrolState>(() => {
-    const centroid = polygonCentroid(zone.polygon, space);
-    return { x: centroid.x, y: centroid.y, rotation: 0 };
-  });
-
   const margin = spriteSize * 0.4;
 
   const pickWaypoint = useCallback(() => {
@@ -99,18 +92,24 @@ function useZonePatrol(zone: Zone, space: Space, spriteSize: number) {
 
   useEffect(() => {
     const rng = rngRef.current;
+    const centroid = polygonCentroid(zone.polygon, space);
     let animId: number;
     let startTime: number;
-    let from = { x: patrol.x, y: patrol.y };
+    let from = { x: centroid.x, y: centroid.y };
     let to = pickWaypoint();
     let duration = 4000 + rng() * 6000;
     let pauseUntil = 0;
 
-    let currentRotation = patrol.rotation;
-    let rotationFrom = currentRotation;
-    let rotationTo = currentRotation + shortestAngle(currentRotation, headingDeg(from, to));
+    let currentRotation = 0;
+    let rotationFrom = 0;
+    let rotationTo = shortestAngle(0, headingDeg(from, to));
     const turnDuration = 600;
     let turnStart = 0;
+
+    // Set initial position
+    if (groupRef.current) {
+      groupRef.current.setAttribute("transform", `translate(${from.x}, ${from.y})`);
+    }
 
     function tick(now: number) {
       if (!startTime) {
@@ -130,13 +129,18 @@ function useZonePatrol(zone: Zone, space: Space, spriteSize: number) {
       const x = from.x + (to.x - from.x) * eased;
       const y = from.y + (to.y - from.y) * eased;
 
-      // Smoothly rotate toward heading over turnDuration ms
       const turnElapsed = now - turnStart;
       const turnT = Math.min(turnElapsed / turnDuration, 1);
       const turnEased = easeInOutCubic(turnT);
       currentRotation = rotationFrom + (rotationTo - rotationFrom) * turnEased;
 
-      setPatrol({ x, y, rotation: currentRotation });
+      // Direct DOM updates — no React re-render
+      if (groupRef.current) {
+        groupRef.current.setAttribute("transform", `translate(${x}, ${y})`);
+      }
+      if (spriteRef.current) {
+        spriteRef.current.setAttribute("transform", `rotate(${currentRotation})`);
+      }
 
       if (t >= 1) {
         from = { x: to.x, y: to.y };
@@ -146,7 +150,6 @@ function useZonePatrol(zone: Zone, space: Space, spriteSize: number) {
         const pause = rng() * 2000;
         pauseUntil = now + pause;
 
-        // Set up next turn
         rotationFrom = currentRotation;
         rotationTo = currentRotation + shortestAngle(currentRotation, headingDeg(from, to));
         turnStart = now + pause;
@@ -157,9 +160,7 @@ function useZonePatrol(zone: Zone, space: Space, spriteSize: number) {
 
     animId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animId);
-  }, [pickWaypoint]);
-
-  return patrol;
+  }, [pickWaypoint, groupRef, spriteRef, zone.polygon, space]);
 }
 
 export function Bot({ zone, space, botType, state }: BotProps) {
@@ -173,9 +174,11 @@ export function Bot({ zone, space, botType, state }: BotProps) {
   const color = botType.colors[state];
   const hasSprite = !!botType.sprite;
 
-  const patrol = useZonePatrol(zone, space, size);
-  const botX = hasSprite ? patrol.x : centroid.x;
-  const botY = hasSprite ? patrol.y : centroid.y;
+  // Refs for direct DOM manipulation — no React re-renders during animation
+  const groupRef = useRef<SVGGElement>(null);
+  const spriteRef = useRef<SVGImageElement>(null);
+
+  useZonePatrol(zone, space, size, groupRef, spriteRef);
 
   useEffect(() => {
     if (labelRef.current) {
@@ -187,28 +190,99 @@ export function Bot({ zone, space, botType, state }: BotProps) {
   const pillPadY = fontSize * 0.35;
   const pillWidth = labelWidth + pillPadX * 2;
   const pillHeight = fontSize + pillPadY * 2;
-  const labelY = botY - (hasSprite ? size * 0.65 : radius * 2.5);
+  const labelOffsetY = hasSprite ? -size * 0.65 : -radius * 2.5;
 
+  if (hasSprite) {
+    // Sprite bot: everything rendered at origin, <g> is translated by rAF
+    return (
+      <g
+        className={`bot bot-${state}`}
+        style={{ "--bot-color": color } as React.CSSProperties}
+      >
+        <g ref={groupRef}>
+          <circle
+            className="bot-glow"
+            cx={0}
+            cy={0}
+            r={size * 1.2}
+            fill={color}
+            opacity={0}
+          />
+
+          {labelWidth > 0 && (
+            <rect
+              x={-pillWidth / 2}
+              y={labelOffsetY - pillHeight / 2}
+              width={pillWidth}
+              height={pillHeight}
+              rx={pillHeight / 2}
+              fill="rgba(10, 10, 15, 0.85)"
+              stroke={color}
+              strokeWidth={1.5}
+              strokeOpacity={0.6}
+              className="bot-pill"
+            />
+          )}
+
+          <text
+            ref={labelRef}
+            x={0}
+            y={labelOffsetY}
+            fill="rgba(255, 255, 255, 0.9)"
+            fontSize={fontSize}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontFamily="monospace"
+            fontWeight="bold"
+            letterSpacing={1}
+          >
+            {zone.name}
+          </text>
+
+          <circle
+            className="bot-ring"
+            cx={0}
+            cy={0}
+            r={size * 0.55}
+            fill="none"
+            stroke={color}
+            strokeWidth={1.5}
+            opacity={0.15}
+          />
+
+          <image
+            ref={spriteRef}
+            className="bot-sprite"
+            href={`/assets/${botType.sprite}`}
+            x={-size / 2}
+            y={-size / 2}
+            width={size}
+            height={size}
+          />
+        </g>
+      </g>
+    );
+  }
+
+  // Fallback: static circle bot (no animation)
   return (
     <g
       className={`bot bot-${state}`}
       style={{ "--bot-color": color } as React.CSSProperties}
     >
-      {/* ambient glow */}
       <circle
         className="bot-glow"
-        cx={botX}
-        cy={botY}
+        cx={centroid.x}
+        cy={centroid.y}
         r={size * 1.2}
         fill={color}
         opacity={0}
       />
 
-      {/* label background pill */}
       {labelWidth > 0 && (
         <rect
-          x={botX - pillWidth / 2}
-          y={labelY - pillHeight / 2}
+          x={centroid.x - pillWidth / 2}
+          y={centroid.y + labelOffsetY - pillHeight / 2}
           width={pillWidth}
           height={pillHeight}
           rx={pillHeight / 2}
@@ -220,11 +294,10 @@ export function Bot({ zone, space, botType, state }: BotProps) {
         />
       )}
 
-      {/* zone name */}
       <text
         ref={labelRef}
-        x={botX}
-        y={labelY}
+        x={centroid.x}
+        y={centroid.y + labelOffsetY}
         fill="rgba(255, 255, 255, 0.9)"
         fontSize={fontSize}
         textAnchor="middle"
@@ -236,62 +309,34 @@ export function Bot({ zone, space, botType, state }: BotProps) {
         {zone.name}
       </text>
 
-      {hasSprite ? (
-        <>
-          {/* state ring behind sprite */}
-          <circle
-            className="bot-ring"
-            cx={botX}
-            cy={botY}
-            r={size * 0.55}
-            fill="none"
-            stroke={color}
-            strokeWidth={1.5}
-            opacity={0.15}
-          />
-          <image
-            className="bot-sprite"
-            href={`/assets/${botType.sprite}`}
-            x={-size / 2}
-            y={-size / 2}
-            width={size}
-            height={size}
-            transform={`translate(${botX}, ${botY}) rotate(${patrol.rotation})`}
-          />
-        </>
-      ) : (
-        <>
-          {/* outer ring */}
-          <circle
-            className="bot-ring"
-            cx={botX}
-            cy={botY}
-            r={radius * 1.6}
-            fill="none"
-            stroke={color}
-            strokeWidth={1.5}
-            opacity={0.2}
-          />
-          {/* core circle */}
-          <circle
-            className="bot-core"
-            cx={botX}
-            cy={botY}
-            r={radius}
-            fill={color}
-            fillOpacity={0.85}
-            stroke="rgba(255, 255, 255, 0.2)"
-            strokeWidth={2}
-          />
-          {/* inner highlight */}
-          <circle
-            cx={botX}
-            cy={botY}
-            r={radius * 0.35}
-            fill="rgba(255, 255, 255, 0.2)"
-          />
-        </>
-      )}
+      <circle
+        className="bot-ring"
+        cx={centroid.x}
+        cy={centroid.y}
+        r={radius * 1.6}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+        opacity={0.2}
+      />
+
+      <circle
+        className="bot-core"
+        cx={centroid.x}
+        cy={centroid.y}
+        r={radius}
+        fill={color}
+        fillOpacity={0.85}
+        stroke="rgba(255, 255, 255, 0.2)"
+        strokeWidth={2}
+      />
+
+      <circle
+        cx={centroid.x}
+        cy={centroid.y}
+        r={radius * 0.35}
+        fill="rgba(255, 255, 255, 0.2)"
+      />
     </g>
   );
 }

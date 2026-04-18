@@ -7,6 +7,7 @@ interface DebugPanelProps {
   onClear: () => void;
   onReloadConfig: () => void;
   onUndoClick: () => void;
+  onCreateZone: (name: string) => void;
 }
 
 export function DebugPanel({
@@ -16,6 +17,7 @@ export function DebugPanel({
   onClear,
   onReloadConfig,
   onUndoClick,
+  onCreateZone,
 }: DebugPanelProps) {
   const [zoneName, setZoneName] = useState("");
   const [copied, setCopied] = useState(false);
@@ -51,6 +53,10 @@ export function DebugPanel({
   const handleClear = () => {
     onClear();
     setZoneName("");
+  };
+
+  const handleCreateZone = () => {
+    onCreateZone(zoneName || "Unnamed Zone");
   };
 
   return (
@@ -91,6 +97,11 @@ export function DebugPanel({
                 ))}
               </div>
               <div className="debug-actions">
+                {clicks.length >= 3 && (
+                  <button className="debug-create-zone" onClick={handleCreateZone}>
+                    Create Zone
+                  </button>
+                )}
                 <button onClick={copyAsYaml}>
                   {copied ? "Copied!" : "Copy YAML"}
                 </button>

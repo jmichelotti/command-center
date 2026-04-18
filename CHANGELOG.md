@@ -43,3 +43,15 @@
 - Eased movement (cubic ease-in-out) with random pauses between legs
 - State-aware sprite effects: drop-shadow glow for active, flash for error
 - C-3PO sized larger (6.5%) than R2-D2 (5%) to match visual weight
+
+### Session 4 — Multi-Space, Pan/Zoom, Creation UI, Performance
+- Multi-space view system: all spaces mounted simultaneously, tab bar with keyboard shortcuts (1-9, [, ])
+- Pan/zoom canvas: scroll-wheel zoom toward cursor, left-click drag to pan, fit-to-viewport on load
+- Space creation UI: "+" button opens modal, upload background image, auto-detect dimensions
+- Zone creation UI: debug overlay polygon tool → "Create Zone" button → modal with droid picker (existing or upload new sprite)
+- Backend endpoints: POST /api/spaces, POST /api/spaces/{id}/zones (multipart with image upload)
+- Backend restart fix: _kill_port uses Stop-Process instead of taskkill (resolves bash slash issues)
+- Sprite animation performance: refactored from React state (60 re-renders/sec/droid) to direct DOM manipulation via refs (zero re-renders)
+- Image optimization: downscaled Echo Base from 21000x15000 (315M px) to 8000x5714 (46M px), eliminated GPU lag spikes
+- Loading indicator: "RENDERING..." text shown while large background images decode
+- python-multipart added to backend requirements for file upload support

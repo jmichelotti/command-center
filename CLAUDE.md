@@ -20,7 +20,7 @@ The rendering engine is generic. It reads config files that define:
 - **Bots** — visual representations of projects (PNG droid sprites with zone patrol animation)
 - **Data sources** — APIs to poll for project status, with adapter types that know how to interpret responses
 
-Adding a new project = define a zone polygon + assign a bot + point to a data source. No code changes needed for new instances of existing data source types.
+Adding a new project = define a zone polygon + assign a bot + point to a data source. No code changes needed for new instances of existing data source types. New spaces and zones can also be created via the UI ("+", then debug overlay polygon tool).
 
 ### Data Source Adapters
 
@@ -106,12 +106,31 @@ Backend: http://localhost:8100 (hardcoded in backend/app.py, auto-kills zombie p
 - **Data**: 633+ playback events, 7 users, 12 devices, date range Feb-Apr 2026
 - **Frontend exists**: Vanilla JS SPA at C:\dev\thunderhead\wrapped (dark cinematic theme)
 
-## Background Image
+## Navigation
 
-- **File**: jabbas-palace.jpg (3900x7500, ~10.5MB)
-- **Source dimensions**: 26 columns x 50 rows at 150 pixels per square
-- **Aspect ratio**: 0.52 (tall portrait)
-- **Rendering**: Fit to viewport width, scroll vertically. Preserve native resolution.
+- **Pan/zoom canvas**: CSS `transform: translate() scale()` on the canvas element (GPU-composited, no layout recalc)
+- **Scroll wheel**: zoom toward cursor position
+- **Left-click drag**: pan the map (5px threshold distinguishes drag from click)
+- **Left click**: zone selection / debug polygon plotting
+- **Tab bar**: switch between spaces (keyboard: 1-9 direct, [ ] to cycle)
+- **Initial view**: image fit to viewport on first load, centered
+
+## Background Images
+
+- Images render at native dimensions; CSS transform handles sizing
+- **Keep images under ~50M pixels** (~8000x6000) to avoid GPU memory lag spikes. The 21000x15000 Echo Base image caused periodic freezes until downscaled.
+- Full-res backups stored as `*-full.jpg` in assets/backgrounds/ (gitignored)
+- Zone polygons use percentage coordinates, so they scale to any image resolution
+
+## API Endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/health` | Health check |
+| GET | `/api/config` | Full YAML config as JSON |
+| GET | `/api/status` | Poll all data sources, return zone statuses |
+| POST | `/api/spaces` | Create new space (multipart: name, background image) |
+| POST | `/api/spaces/{id}/zones` | Create zone with polygon + bot sprite |
 
 ## Design Decisions Log
 
@@ -125,3 +144,6 @@ Backend: http://localhost:8100 (hardcoded in backend/app.py, auto-kills zombie p
 | 2026-04-18 | One bot per project | StoryGraph bot aggregates both Kim and Justin profiles. Keeps the map clean. |
 | 2026-04-18 | Data source adapter pattern | Different APIs have different shapes. Adapters provide a uniform interface. Adding a new instance of an existing type is config-only. New types need a small adapter. |
 | 2026-04-18 | Poll existing APIs, don't rebuild | StoryGraph (port 1200) and Jellyfin (port 1201) already have exactly the data we need. |
+| 2026-04-18 | Sprite animation via direct DOM refs | Calling React setState at 60fps per droid causes unnecessary re-renders. rAF loop updates SVG transform attributes via refs — zero React re-renders during animation. |
+| 2026-04-18 | Downscale large images over tiling | OpenSeadragon/tile pyramids are overkill when ~8000px wide images perform well. Revisit if full-res zoom detail is needed. |
+| 2026-04-18 | Left-click drag for pan | Right-click and middle-click have unavoidable browser side effects (context menus, new tabs). Left-drag with 5px threshold cleanly separates pan from click. |

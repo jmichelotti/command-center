@@ -1,25 +1,151 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { Space, Config } from "../types/config";
 import { ZoneOverlay } from "./ZoneOverlay";
 import { Bot } from "./Bot";
 import { DebugPanel } from "./DebugPanel";
 import { StatusPanel } from "./StatusPanel";
+import { CreateZoneModal } from "./CreateZoneModal";
 import { useProjectStatus } from "../hooks/useProjectStatus";
 
 interface SpaceViewProps {
   space: Space;
   config: Config;
   onReloadConfig: () => void;
+  isActive: boolean;
 }
 
-export function SpaceView({ space, config, onReloadConfig }: SpaceViewProps) {
+const MIN_ZOOM = 0.05;
+const MAX_ZOOM = 5;
+const ZOOM_SPEED = 0.001;
+
+interface ViewState {
+  zoom: number;
+  panX: number;
+  panY: number;
+}
+
+function fitToViewport(nativeW: number, nativeH: number): ViewState {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const scaleX = vw / nativeW;
+  const scaleY = vh / nativeH;
+  const zoom = Math.min(scaleX, scaleY);
+  return {
+    zoom,
+    panX: (vw - nativeW * zoom) / 2,
+    panY: (vh - nativeH * zoom) / 2,
+  };
+}
+
+export function SpaceView({ space, config, onReloadConfig, isActive }: SpaceViewProps) {
   const [debug, setDebug] = useState(false);
   const [clicks, setClicks] = useState<[number, number][]>([]);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+  const [showCreateZone, setShowCreateZone] = useState(false);
+  const [pendingZoneName, setPendingZoneName] = useState("");
+  const [imageLoaded, setImageLoaded] = useState(false);
   const statuses = useProjectStatus(config);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<ViewState>({ zoom: 1, panX: 0, panY: 0 });
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const initialized = useRef(false);
+  const isPanning = useRef(false);
+  const didDrag = useRef(false);
+  const lastMouse = useRef({ x: 0, y: 0 });
+  const dragStart = useRef({ x: 0, y: 0 });
+  const DRAG_THRESHOLD = 5;
+
+  function applyTransform() {
+    if (!canvasRef.current) return;
+    const { zoom, panX, panY } = viewRef.current;
+    canvasRef.current.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+  }
+
+  // Fit to viewport on first activation after image loads
+  useEffect(() => {
+    if (!imageLoaded || !isActive || initialized.current) return;
+    initialized.current = true;
+    viewRef.current = fitToViewport(space.nativeWidth, space.nativeHeight);
+    applyTransform();
+  }, [imageLoaded, isActive, space.nativeWidth, space.nativeHeight]);
+
+  // Wheel zoom toward cursor
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      const v = viewRef.current;
+      const rect = container!.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const delta = -e.deltaY * ZOOM_SPEED;
+      const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom * (1 + delta)));
+      const scale = newZoom / v.zoom;
+      v.panX = mouseX - (mouseX - v.panX) * scale;
+      v.panY = mouseY - (mouseY - v.panY) * scale;
+      v.zoom = newZoom;
+      applyTransform();
+    }
+
+    container.addEventListener("wheel", onWheel, { passive: false });
+    return () => container.removeEventListener("wheel", onWheel);
+  }, []);
+
+  // Left-click drag to pan
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    function onMouseDown(e: MouseEvent) {
+      if (e.button !== 0) return;
+      isPanning.current = true;
+      didDrag.current = false;
+      lastMouse.current = { x: e.clientX, y: e.clientY };
+      dragStart.current = { x: e.clientX, y: e.clientY };
+    }
+
+    function onMouseMove(e: MouseEvent) {
+      if (!isPanning.current) return;
+      const dx = e.clientX - lastMouse.current.x;
+      const dy = e.clientY - lastMouse.current.y;
+      lastMouse.current = { x: e.clientX, y: e.clientY };
+
+      const totalDx = e.clientX - dragStart.current.x;
+      const totalDy = e.clientY - dragStart.current.y;
+      if (Math.abs(totalDx) > DRAG_THRESHOLD || Math.abs(totalDy) > DRAG_THRESHOLD) {
+        didDrag.current = true;
+        container!.style.cursor = "grabbing";
+      }
+
+      if (didDrag.current) {
+        viewRef.current.panX += dx;
+        viewRef.current.panY += dy;
+        applyTransform();
+      }
+    }
+
+    function onMouseUp() {
+      isPanning.current = false;
+      container!.style.cursor = "";
+    }
+
+    container.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+
+    return () => {
+      container.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, []);
 
   const handleSvgClick = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
+      if (didDrag.current) return;
       if (!debug) {
         setSelectedZoneId(null);
         return;
@@ -42,6 +168,18 @@ export function SpaceView({ space, config, onReloadConfig }: SpaceViewProps) {
     setSelectedZoneId((prev) => (prev === zoneId ? null : zoneId));
   }, []);
 
+  const handleCreateZone = useCallback((name: string) => {
+    setPendingZoneName(name);
+    setShowCreateZone(true);
+  }, []);
+
+  const handleZoneCreated = useCallback(() => {
+    setShowCreateZone(false);
+    setClicks([]);
+    setPendingZoneName("");
+    onReloadConfig();
+  }, [onReloadConfig]);
+
   const selectedZone = selectedZoneId
     ? space.zones.find((z) => z.id === selectedZoneId)
     : null;
@@ -58,13 +196,24 @@ export function SpaceView({ space, config, onReloadConfig }: SpaceViewProps) {
       : null;
 
   return (
-    <div className="space-container">
-      <div className="space-canvas">
+    <div className="space-container" ref={containerRef}>
+      {!imageLoaded && (
+        <div className="space-loading">
+          <div className="loading-text">RENDERING {space.name.toUpperCase()}...</div>
+        </div>
+      )}
+
+      <div
+        className="space-canvas"
+        ref={canvasRef}
+        style={{ opacity: imageLoaded ? 1 : 0 }}
+      >
         <img
           src={`/assets/${space.image}`}
           alt={space.name}
           className="space-image"
           draggable={false}
+          onLoad={() => setImageLoaded(true)}
         />
         <svg
           className="space-overlay"
@@ -88,6 +237,7 @@ export function SpaceView({ space, config, onReloadConfig }: SpaceViewProps) {
               debug={debug}
               selected={zone.id === selectedZoneId}
               onSelect={handleZoneSelect}
+              isDragging={() => didDrag.current}
             />
           ))}
           {space.zones.map((zone) => {
@@ -155,7 +305,22 @@ export function SpaceView({ space, config, onReloadConfig }: SpaceViewProps) {
         onClear={() => setClicks([])}
         onReloadConfig={onReloadConfig}
         onUndoClick={() => setClicks((prev) => prev.slice(0, -1))}
+        onCreateZone={handleCreateZone}
       />
+
+      {showCreateZone && (
+        <CreateZoneModal
+          spaceId={space.id}
+          zoneName={pendingZoneName}
+          polygon={clicks.map(([x, y]) => [
+            parseFloat(x.toFixed(1)),
+            parseFloat(y.toFixed(1)),
+          ])}
+          config={config}
+          onClose={() => setShowCreateZone(false)}
+          onCreated={handleZoneCreated}
+        />
+      )}
     </div>
   );
 }

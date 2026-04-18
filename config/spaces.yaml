@@ -1,73 +1,114 @@
-# Command Center — Space Configuration
-# See CLAUDE.md for schema documentation
-
-# ── Bot type definitions ──────────────────────────────────
-# Registered separately so multiple zones can share a bot style.
-# Adding a new bot type = add entry here + optionally drop a PNG in assets/sprites/
 botTypes:
   droid:
-    label: "Astromech Droid"
-    sprite: "sprites/r2d2.png"
+    label: Astromech Droid
+    sprite: sprites/r2d2.png
     placeholder:
       shape: circle
-      size: 5  # percentage of image width
+      size: 5
     colors:
-      active: "#00ff88"
-      idle: "#4a6fa5"
-      error: "#ff4444"
-
+      active: '#00ff88'
+      idle: '#4a6fa5'
+      error: '#ff4444'
   protocol-droid:
-    label: "Protocol Droid"
-    sprite: "sprites/c3po.png"
+    label: Protocol Droid
+    sprite: sprites/c3po.png
     placeholder:
       shape: circle
       size: 6.5
     colors:
-      active: "#ffaa00"
-      idle: "#4a6fa5"
-      error: "#ff4444"
-
-# ── Data source definitions ───────────────────────────────
-# Each has a `type` that maps to a backend adapter.
-# Adding a new instance of an existing type = config only.
-# Adding a new type = write a small adapter (fetch + derive state + extract panel fields).
+      active: '#ffaa00'
+      idle: '#4a6fa5'
+      error: '#ff4444'
+  tc-14:
+    label: TC-14
+    sprite: sprites/tc-14.png
+    placeholder:
+      shape: circle
+      size: 5
+    colors:
+      active: '#00ff88'
+      idle: '#4a6fa5'
+      error: '#ff4444'
+  r5-j2:
+    label: R5-J2
+    sprite: sprites/r5-j2.png
+    placeholder:
+      shape: circle
+      size: 5
+    colors:
+      active: '#00ff88'
+      idle: '#4a6fa5'
+      error: '#ff4444'
 dataSources:
   storygraph:
     type: storygraph
-    endpoint: "http://127.0.0.1:1200/status"
+    endpoint: http://127.0.0.1:1200/status
     pollInterval: 30
-
   jellyfin:
     type: jellyfin
-    endpoint: "http://127.0.0.1:1201/status"
+    endpoint: http://127.0.0.1:1201/status
     pollInterval: 15
-
-# ── Spaces ────────────────────────────────────────────────
-# Each space is a background image with zones mapped onto it.
-# All polygon coordinates are [x%, y%] relative to image dimensions.
 spaces:
-  - id: jabbas-palace
-    name: "Jabba's Palace"
-    image: "backgrounds/jabbas-palace.jpg"
-    nativeWidth: 3900
-    nativeHeight: 7500
-    zones:
-      - id: storygraph
-        name: "StoryGraphAutomation"
-        polygon:
-          - [10.6, 6.6]
-          - [10.5, 25.9]
-          - [34.5, 26.0]
-          - [34.8, 6.8]
-        bot: droid
-        dataSource: storygraph
-
-      - id: jellyfin
-        name: "ThunderheadFlix"
-        polygon:
-          - [73.1, 2.3]
-          - [73.0, 17.1]
-          - [91.0, 17.1]
-          - [91.3, 2.1]
-        bot: protocol-droid
-        dataSource: jellyfin
+- id: jabbas-palace
+  name: Jabba's Palace
+  image: backgrounds/jabbas-palace.jpg
+  nativeWidth: 3900
+  nativeHeight: 7500
+  zones:
+  - id: storygraph
+    name: StoryGraphAutomation
+    polygon:
+    - [10.6, 6.6]
+    - [10.5, 25.9]
+    - [34.5, 26.0]
+    - [34.8, 6.8]
+    bot: droid
+    dataSource: storygraph
+  - id: jellyfin
+    name: ThunderheadFlix
+    polygon:
+    - [73.1, 2.3]
+    - [73.0, 17.1]
+    - [91.0, 17.1]
+    - [91.3, 2.1]
+    bot: protocol-droid
+    dataSource: jellyfin
+- id: echo-base
+  name: Echo Base
+  image: backgrounds/echo-base.jpg
+  nativeWidth: 8000
+  nativeHeight: 5714
+  zones:
+  - id: storygraph-automation
+    name: StoryGraph Automation
+    polygon:
+    - [69.3, 11.6]
+    - [69.6, 24.9]
+    - [90.5, 22.9]
+    - [90.5, 9.9]
+    bot: droid
+    dataSource: storygraph
+  - id: thunderheadflix
+    name: ThunderheadFlix
+    polygon:
+    - [51.5, 49.9]
+    - [51.4, 63.6]
+    - [64.1, 63.7]
+    - [63.9, 49.8]
+    bot: r5-j2
+    dataSource: jellyfin
+- id: falcon
+  name: Falcon
+  image: backgrounds/falcon.jpg
+  nativeWidth: 9000
+  nativeHeight: 9000
+  zones:
+  - id: storygraph-automation
+    name: StoryGraph Automation
+    polygon:
+    - [57.4, 38.4]
+    - [66.4, 46.9]
+    - [71, 44]
+    - [58.3, 34.4]
+    bot: droid
+    dataSource: storygraph

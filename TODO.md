@@ -22,7 +22,12 @@
 
 ## Phase 4 — Polish & Multi-Space
 - [ ] Refine sci-fi terminal panel UI
-- [ ] Multiple space support (tabs or navigation)
+- [x] Multiple space support (tab bar, keyboard shortcuts, all spaces mounted simultaneously)
+- [x] Pan/zoom canvas (scroll-wheel zoom, left-drag pan, fit-to-viewport on load)
+- [x] Space creation UI (upload background, auto-detect dimensions)
+- [x] Zone creation UI (debug polygon tool → Create Zone modal with sprite upload)
+- [x] Sprite animation perf: rAF updates DOM via refs, zero React re-renders
+- [x] Large image optimization: downscale backgrounds to ~8000px wide
 - [ ] UX improvements from usage feedback
 - [x] PNG sprite support for bots (R2-D2 for StoryGraph, C-3PO for ThunderheadFlix)
 - [x] Zone patrol animation (droids wander within polygon, rotate to face heading)

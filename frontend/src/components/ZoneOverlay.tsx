@@ -6,9 +6,10 @@ interface ZoneOverlayProps {
   debug: boolean;
   selected: boolean;
   onSelect: (zoneId: string) => void;
+  isDragging: () => boolean;
 }
 
-export function ZoneOverlay({ zone, space, debug, selected, onSelect }: ZoneOverlayProps) {
+export function ZoneOverlay({ zone, space, debug, selected, onSelect, isDragging }: ZoneOverlayProps) {
   const points = zone.polygon
     .map(([xPct, yPct]) => {
       const x = (xPct / 100) * space.nativeWidth;
@@ -18,6 +19,7 @@ export function ZoneOverlay({ zone, space, debug, selected, onSelect }: ZoneOver
     .join(" ");
 
   const handleClick = (e: React.MouseEvent) => {
+    if (isDragging()) return;
     e.stopPropagation();
     onSelect(zone.id);
   };
