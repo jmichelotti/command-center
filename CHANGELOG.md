@@ -1,0 +1,37 @@
+# Command Center — Changelog
+
+## 2026-04-18
+
+### Session 1 — Phase 1 Complete
+- Initialized git repo, set GitHub remote
+- Copied Jabba's Palace background image (3900x7500) into assets/backgrounds/
+- Created project documentation (CLAUDE.md, TODO.md, CHANGELOG.md)
+- Explored existing data sources:
+  - StoryGraph dashboard API (port 1200) — live, returning full status data
+  - Jellyfin analytics API (port 1201) — live, 14 endpoints with playback data
+- Decided on tech stack: React + TypeScript + Vite, FastAPI, YAML config
+- Built Phase 1 — Foundation:
+  - FastAPI backend (port 8080): serves YAML config as JSON, static assets
+  - React frontend (port 5180): Vite with hot-reload, proxy to backend
+  - Config schema: botTypes, dataSources, spaces with zones (YAML)
+  - SpaceView component: renders background image at viewport width, scrollable
+  - SVG overlay with percentage-based polygon zones (proper centroid calculation)
+  - Bot placeholder circles positioned at zone centroids with labels
+  - Debug overlay: togglable zone boundaries, click-to-plot polygon points, copy as YAML
+  - TypeScript types matching config schema
+- Built Phase 2 — Bot State System:
+  - Three bot states: active (pulsing green), idle (breathing blue), error (flashing red)
+  - CSS animations: glow rings, core pulse, ambient glow per state
+  - Mock data provider: cycles bots through idle→active→idle→error with staggered timing
+  - Status panel: sci-fi terminal with scan lines, slide-in animation, live-updating fields
+  - Zone click selection: click a zone to open its status panel, click outside to dismiss
+  - Panel shows state-specific data (different fields for running vs. nominal vs. fault)
+  - Bot label redesigned: dark pill above circle, no overlap
+
+### Session 2 — Phase 3 Complete
+- Built StoryGraph adapter: polls port 1200 /status, derives bot state from profile run results
+- Built Jellyfin adapter: polls port 1201 /status, derives bot state from server online + active streams
+- Both bots now show real-time data in status panels (NOMINAL/ACTIVE/FAULT)
+- Fixed backend port: hardcoded to 8100 with auto-kill of zombie processes on startup
+- Vite proxy updated to target port 8100
+- Jellyfin analytics service containerized in separate session (Docker, port 1201, unless-stopped)
