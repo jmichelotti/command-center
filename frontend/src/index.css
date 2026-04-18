@@ -177,6 +177,27 @@ body {
   50% { opacity: 0.15; }
 }
 
+/* ── Bot sprites ─────────────────────────────────────── */
+
+.bot-sprite {
+  filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+.bot-active .bot-sprite {
+  filter: drop-shadow(0 0 12px var(--bot-color)) drop-shadow(0 0 4px rgba(0, 0, 0, 0.5));
+}
+
+.bot-error .bot-sprite {
+  filter: drop-shadow(0 0 12px var(--bot-color)) drop-shadow(0 0 4px rgba(0, 0, 0, 0.5));
+  animation: sprite-error-flash 1s ease-in-out infinite;
+}
+
+@keyframes sprite-error-flash {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
 /* ── Status panel ─────────────────────────────────────── */
 
 .status-panel {

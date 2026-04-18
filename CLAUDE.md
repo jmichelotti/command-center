@@ -17,7 +17,7 @@ Personal dev project monitoring dashboard. A top-down Star Wars location image s
 The rendering engine is generic. It reads config files that define:
 - **Spaces** — background images (e.g., Jabba's Palace)
 - **Zones** — irregular polygon regions on the image (percentage-based coordinates)
-- **Bots** — visual representations of projects (placeholder circles now, PNGs later)
+- **Bots** — visual representations of projects (PNG droid sprites with zone patrol animation)
 - **Data sources** — APIs to poll for project status, with adapter types that know how to interpret responses
 
 Adding a new project = define a zone polygon + assign a bot + point to a data source. No code changes needed for new instances of existing data source types.

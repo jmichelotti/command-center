@@ -7,10 +7,10 @@
 botTypes:
   droid:
     label: "Astromech Droid"
-    sprite: null
+    sprite: "sprites/r2d2.png"
     placeholder:
       shape: circle
-      size: 1.5  # percentage of image width
+      size: 5  # percentage of image width
     colors:
       active: "#00ff88"
       idle: "#4a6fa5"
@@ -18,10 +18,10 @@ botTypes:
 
   protocol-droid:
     label: "Protocol Droid"
-    sprite: null
+    sprite: "sprites/c3po.png"
     placeholder:
       shape: circle
-      size: 1.5
+      size: 6.5
     colors:
       active: "#ffaa00"
       idle: "#4a6fa5"

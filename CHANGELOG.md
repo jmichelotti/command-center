@@ -35,3 +35,11 @@
 - Fixed backend port: hardcoded to 8100 with auto-kill of zombie processes on startup
 - Vite proxy updated to target port 8100
 - Jellyfin analytics service containerized in separate session (Docker, port 1201, unless-stopped)
+
+### Session 3 — Droid Sprites & Zone Patrol
+- Replaced placeholder circles with top-down droid PNG sprites (R2-D2, C-3PO)
+- Zone patrol system: droids pick random waypoints inside their polygon and walk between them
+- Smooth directional rotation: droids turn to face heading with shortest-path angle interpolation
+- Eased movement (cubic ease-in-out) with random pauses between legs
+- State-aware sprite effects: drop-shadow glow for active, flash for error
+- C-3PO sized larger (6.5%) than R2-D2 (5%) to match visual weight

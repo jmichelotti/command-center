@@ -24,4 +24,5 @@
 - [ ] Refine sci-fi terminal panel UI
 - [ ] Multiple space support (tabs or navigation)
 - [ ] UX improvements from usage feedback
-- [ ] PNG sprite support for bots
+- [x] PNG sprite support for bots (R2-D2 for StoryGraph, C-3PO for ThunderheadFlix)
+- [x] Zone patrol animation (droids wander within polygon, rotate to face heading)
