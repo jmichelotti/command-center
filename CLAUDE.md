@@ -31,13 +31,13 @@ Each data source type has an adapter that knows how to:
 
 Current adapter types:
 - `storygraph` — polls StoryGraph dashboard API (port 1200)
-- `jellyfin` — polls Jellyfin analytics API (port 1201)
+- `jellyfin` — polls Jellyfin analytics API (port 1201), also fetches episode gaps via `/episodes/gaps` (background thread, 5-min cache)
 
 ### Bot States
 
 | State | Meaning | Visual |
 |-------|---------|--------|
-| `active` | Automation running / streams active | Pulsing green glow |
+| `active` | Automation running / streams active / missing episodes | Pulsing green glow |
 | `idle` | Healthy, nothing happening | Dim steady state |
 | `error` | Last run failed / unreachable | Flashing red |
 
@@ -147,3 +147,5 @@ Backend: http://localhost:8100 (hardcoded in backend/app.py, auto-kills zombie p
 | 2026-04-18 | Sprite animation via direct DOM refs | Calling React setState at 60fps per droid causes unnecessary re-renders. rAF loop updates SVG transform attributes via refs — zero React re-renders during animation. |
 | 2026-04-18 | Downscale large images over tiling | OpenSeadragon/tile pyramids are overkill when ~8000px wide images perform well. Revisit if full-res zoom detail is needed. |
 | 2026-04-18 | Left-click drag for pan | Right-click and middle-click have unavoidable browser side effects (context menus, new tabs). Left-drag with 5px threshold cleanly separates pan from click. |
+| 2026-04-18 | Episode gaps via background thread | Jellyfin analytics API is single-threaded; the `/episodes/gaps` endpoint takes ~60s. Fetching it in the main request path blocks `/status`. A daemon thread fetches gaps independently with a 5-min cache. Status requests use a 5s timeout with cached fallback so they never block. |
+| 2026-04-18 | Single status polling loop | `useProjectStatus` runs in App, not per-SpaceView. All spaces are mounted simultaneously — 3 independent polling loops caused request pileup. One loop with `setTimeout` (not `setInterval`) prevents overlap. |

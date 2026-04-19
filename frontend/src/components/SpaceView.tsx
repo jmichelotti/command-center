@@ -5,11 +5,12 @@ import { Bot } from "./Bot";
 import { DebugPanel } from "./DebugPanel";
 import { StatusPanel } from "./StatusPanel";
 import { CreateZoneModal } from "./CreateZoneModal";
-import { useProjectStatus } from "../hooks/useProjectStatus";
+import type { ProjectStatus } from "../hooks/useProjectStatus";
 
 interface SpaceViewProps {
   space: Space;
   config: Config;
+  statuses: Record<string, ProjectStatus>;
   onReloadConfig: () => void;
   isActive: boolean;
 }
@@ -37,14 +38,13 @@ function fitToViewport(nativeW: number, nativeH: number): ViewState {
   };
 }
 
-export function SpaceView({ space, config, onReloadConfig, isActive }: SpaceViewProps) {
+export function SpaceView({ space, config, statuses, onReloadConfig, isActive }: SpaceViewProps) {
   const [debug, setDebug] = useState(false);
   const [clicks, setClicks] = useState<[number, number][]>([]);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [showCreateZone, setShowCreateZone] = useState(false);
   const [pendingZoneName, setPendingZoneName] = useState("");
   const [imageLoaded, setImageLoaded] = useState(false);
-  const statuses = useProjectStatus(config);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<ViewState>({ zoom: 1, panX: 0, panY: 0 });

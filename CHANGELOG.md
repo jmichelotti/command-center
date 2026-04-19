@@ -55,3 +55,11 @@
 - Image optimization: downscaled Echo Base from 21000x15000 (315M px) to 8000x5714 (46M px), eliminated GPU lag spikes
 - Loading indicator: "RENDERING..." text shown while large background images decode
 - python-multipart added to backend requirements for file upload support
+
+### Session 5 — Episode Gap Detection & Polling Fixes
+- Jellyfin adapter: integrated `/episodes/gaps` endpoint to show missing episodes in status panel
+- Episode gaps fetched via background daemon thread (120s timeout, 5-min cache) to avoid blocking the single-threaded analytics server
+- Status request uses 5s timeout with cached fallback — never blocks even when analytics server is busy
+- Bot state priority: streaming > missing episodes > nominal (missing episodes triggers `active` state)
+- Lifted `useProjectStatus` from SpaceView to App — single polling loop instead of one per mounted space
+- Switched polling from `setInterval` to `setTimeout` to prevent request pileup when responses are slow

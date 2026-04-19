@@ -38,12 +38,18 @@ export function useProjectStatus(config: Config): Record<string, ProjectStatus> 
       }
     };
 
-    fetchStatus();
-    const interval = setInterval(fetchStatus, POLL_INTERVAL_MS);
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      await fetchStatus();
+      if (mountedRef.current) {
+        timeoutId = setTimeout(poll, POLL_INTERVAL_MS);
+      }
+    };
+    poll();
 
     return () => {
       mountedRef.current = false;
-      clearInterval(interval);
+      clearTimeout(timeoutId);
     };
   }, [config]);
 

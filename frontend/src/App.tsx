@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useConfig } from "./hooks/useConfig";
+import { useProjectStatus } from "./hooks/useProjectStatus";
 import { SpaceView } from "./components/SpaceView";
 import { CreateSpaceModal } from "./components/CreateSpaceModal";
 
 export default function App() {
   const { config, loading, error, reload } = useConfig();
+  const statuses = useProjectStatus(config ?? { spaces: [], botTypes: {}, dataSources: {} });
   const [activeIndex, setActiveIndex] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
 
@@ -96,7 +98,7 @@ export default function App() {
           key={space.id}
           className={`space-layer ${i === activeIndex ? "space-layer-active" : ""}`}
         >
-          <SpaceView space={space} config={config} onReloadConfig={reload} isActive={i === activeIndex} />
+          <SpaceView space={space} config={config} statuses={statuses} onReloadConfig={reload} isActive={i === activeIndex} />
         </div>
       ))}
 
