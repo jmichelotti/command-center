@@ -6,8 +6,8 @@ export default defineConfig({
   server: {
     port: 5180,
     proxy: {
-      '/api': 'http://localhost:8100',
-      '/assets': 'http://localhost:8100',
+      '/api': 'http://localhost:8200',
+      '/assets': 'http://localhost:8200',
     },
   },
 })

@@ -1,4 +1,5 @@
 import asyncio
+import os
 import re
 import subprocess
 import sys
@@ -10,20 +11,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.config_loader import load_config
-from backend.adapters import storygraph, jellyfin
+from backend.adapters import file_adapter
 
-PORT = 8100
+PORT = int(os.environ.get("PORT", "8200"))
 
 ADAPTERS = {
-    "storygraph": storygraph.fetch_status,
-    "jellyfin": jellyfin.fetch_status,
+    "file": file_adapter.fetch_status,
 }
 
 app = FastAPI(title="Command Center")
 
+_cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:5180,http://localhost:5181,http://localhost:8200")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5180", "http://localhost:5181"],
+    allow_origins=[o.strip() for o in _cors_origins.split(",")],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -62,7 +63,7 @@ async def get_status():
                 continue
 
             zone_ids.append(zone["id"])
-            tasks.append(adapter_fn(ds["endpoint"]))
+            tasks.append(adapter_fn(ds.get("path", ds.get("endpoint", ""))))
 
     statuses = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -254,22 +255,31 @@ async def create_zone(
     return {"ok": True, "zoneId": zone_id, "config": load_config()}
 
 
+frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    from fastapi.responses import FileResponse
+
+    @app.get("/")
+    async def serve_index():
+        return FileResponse(frontend_dist / "index.html")
+
+    app.mount("/", StaticFiles(directory=str(frontend_dist)), name="frontend")
+
+
 def _kill_port(port: int):
-    """Kill any process listening on the given port (Windows-only)."""
+    """Kill any process listening on the given port."""
     try:
         result = subprocess.run(
-            ["powershell", "-Command",
-             f"(Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue).OwningProcess"],
+            ["fuser", f"{port}/tcp"],
             capture_output=True, text=True, timeout=5,
         )
-        pids = {int(p) for p in result.stdout.split() if p.strip().isdigit()} - {0}
-        if pids:
-            pid_list = ",".join(str(p) for p in pids)
-            subprocess.run(
-                ["powershell", "-Command",
-                 f"Stop-Process -Id {pid_list} -Force -ErrorAction SilentlyContinue"],
-                capture_output=True, timeout=5,
-            )
+        pids = result.stdout.split()
+        for pid in pids:
+            pid = pid.strip()
+            if pid.isdigit() and int(pid) != os.getpid():
+                os.kill(int(pid), 9)
+    except FileNotFoundError:
+        pass
     except Exception:
         pass
 
@@ -278,4 +288,4 @@ if __name__ == "__main__":
     import uvicorn
 
     _kill_port(PORT)
-    uvicorn.run("backend.app:app", host="127.0.0.1", port=PORT, reload=True)
+    uvicorn.run("backend.app:app", host="0.0.0.0", port=PORT, reload=True)

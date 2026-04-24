@@ -5,10 +5,11 @@ Personal dev project monitoring dashboard. A top-down Star Wars location image s
 ## Tech Stack
 
 - **Frontend**: React 19 + TypeScript + Vite (port 5180 dev)
-- **Backend**: FastAPI + Python (port 8100)
+- **Backend**: FastAPI + Python (port 8200)
 - **Config format**: YAML
-- **Node**: v24.12.0 / npm 11.6.2
-- **Python**: 3.14.2
+- **Containerization**: Docker Compose
+- **Node**: v24 / npm 11
+- **Python**: 3.12
 
 ## Architecture
 
@@ -18,20 +19,31 @@ The rendering engine is generic. It reads config files that define:
 - **Spaces** — background images (e.g., Jabba's Palace)
 - **Zones** — irregular polygon regions on the image (percentage-based coordinates)
 - **Bots** — visual representations of projects (PNG droid sprites with zone patrol animation)
-- **Data sources** — APIs to poll for project status, with adapter types that know how to interpret responses
+- **Data sources** — JSON status files written by external writer scripts
 
-Adding a new project = define a zone polygon + assign a bot + point to a data source. No code changes needed for new instances of existing data source types. New spaces and zones can also be created via the UI ("+", then debug overlay polygon tool).
+Adding a new project = write a status writer + define a zone polygon + assign a bot + point to a data source. New spaces and zones can also be created via the UI ("+", then debug overlay polygon tool).
 
-### Data Source Adapters
+### Common Analytics Format (File-Based)
 
-Each data source type has an adapter that knows how to:
-1. Fetch data from the source API
-2. Derive bot state (active/idle/error) from the response
-3. Extract display fields for the status panel
+All project integrations follow the same pattern:
+1. A **writer script** runs in its own Docker container (or locally), polling the project's native API or reading its output files
+2. The writer transforms the data into a common JSON format and writes it to `data/status/<project>.json`
+3. The command center backend reads these JSON files via a single `FileAdapter` — no per-project adapter code
 
-Current adapter types:
-- `storygraph` — polls StoryGraph dashboard API (port 1200)
-- `jellyfin` — polls Jellyfin analytics API (port 1201), also fetches episode gaps via `/episodes/gaps` (background thread, 5-min cache)
+Common status JSON schema:
+```json
+{
+  "project": "project-name",
+  "updated_at": "2026-04-23T18:55:04+00:00",
+  "state": "idle",
+  "label": "NOMINAL",
+  "fields": [
+    {"key": "Field Name", "value": "field value"}
+  ]
+}
+```
+
+Adding a new project integration = write a new writer script (~50-100 lines) + add config entry. No changes to the command center backend.
 
 ### Bot States
 
@@ -46,21 +58,30 @@ Current adapter types:
 ```
 command-center/
 ├── assets/
-│   └── backgrounds/          # Background images
-│       └── jabbas-palace.jpg # 3900x7500 top-down floor plan
-├── config/                   # YAML config files
+│   ├── backgrounds/          # Background images
+│   └── sprites/              # Droid PNG sprites
+├── config/
 │   └── spaces.yaml           # Spaces, zones, bots, data sources
+├── data/
+│   └── status/               # Writer output (gitignored)
+│       ├── storygraph.json
+│       └── jellyfin.json
 ├── frontend/                 # React + TypeScript + Vite
-│   ├── src/
-│   │   ├── components/       # React components
-│   │   ├── hooks/            # Custom React hooks
-│   │   ├── types/            # TypeScript type definitions
-│   │   └── adapters/         # Data source adapter logic
-│   └── ...
+│   └── src/
+│       ├── components/       # React components
+│       ├── hooks/            # Custom React hooks
+│       └── types/            # TypeScript type definitions
 ├── backend/                  # FastAPI
 │   ├── app.py                # Main FastAPI app
 │   ├── config_loader.py      # YAML config parser
-│   └── adapters/             # Data source adapters (fetch + transform)
+│   └── adapters/
+│       └── file_adapter.py   # Reads status JSON files
+├── writers/                  # Status writer scripts
+│   ├── storygraph_writer.py  # Reads storygraph status.json
+│   └── jellyfin_writer.py    # Polls Jellyfin API
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example
 ├── CLAUDE.md
 ├── TODO.md
 └── CHANGELOG.md
@@ -68,43 +89,74 @@ command-center/
 
 ## How to Run
 
+### Docker (production)
+
+```bash
+cp .env.example .env          # edit with real values
+docker compose up -d           # start all services
+docker compose up -d --build   # rebuild after code changes
+docker compose logs -f command-center  # tail logs
+docker compose down            # stop everything
+```
+
+Services:
+- `command-center` — backend + built frontend on port 8200
+- `storygraph-writer` — reads storygraph status, writes to shared volume
+- `jellyfin-writer` — polls Jellyfin API, writes to shared volume
+
+All containers use `restart: unless-stopped` — survives reboots.
+
 ### Dev (hot-reload)
 
 ```bash
 # Terminal 1 — Backend (from project root)
-python -m backend.app
+python3 -m backend.app
 
 # Terminal 2 — Frontend
-cd frontend
-npm install
-npm run dev
+cd frontend && npm install && npm run dev
+
+# Terminal 3 — StoryGraph writer
+JELLYFIN_API_KEY=<key> python3 writers/storygraph_writer.py
+
+# Terminal 4 — Jellyfin writer
+JELLYFIN_API_KEY=<key> python3 writers/jellyfin_writer.py
 ```
 
-Frontend: http://localhost:5180
-Backend: http://localhost:8100 (hardcoded in backend/app.py, auto-kills zombie processes on startup)
+Frontend: http://localhost:5180 (Vite dev server, proxies API to backend)
+Backend: http://localhost:8200
 
-## External Dependencies (existing services)
+## External Dependencies
 
-### StoryGraph Dashboard API — port 1200
-- **Location**: C:\dev\StoryGraphAutomation\dashboard
-- **Runs via**: Docker (`docker compose up -d dashboard`)
-- **Key endpoint**: `GET /status` — returns per-profile run status, duration, applied books, next scheduled run, in-progress audiobooks
+### StoryGraph Automation — ~/dev/storygraph-automation
+- **Runs via**: Docker (`docker compose up -d`)
+- **Output**: `status/status.json` — per-profile run status, duration, books synced, in-progress audiobooks, next scheduled run
 - **Profiles**: kim (Goodreads sync, hourly), justin (Audible sync, 2x daily)
+- **Integration**: `storygraph-writer` reads this JSON file and transforms to common format
 
-### Jellyfin Analytics API — port 1201
-- **Location**: C:\dev\thunderhead\analytics
-- **Runs via**: Docker (`docker compose up -d` from `analytics/`), restart policy `unless-stopped`
-- **Key endpoints**:
-  - `GET /status` — server info, active sessions, library counts, storage
-  - `GET /sessions` — real-time active streams with user, device, progress
-  - `GET /playback/most-watched` — top content by play count
-  - `GET /playback/currently-watching` — shows per user with latest episode
-  - `GET /playback/hourly` — viewing heatmap data
-  - `GET /playback/wrapped` — per-user annual summary
-  - `GET /episodes/gaps` — missing episodes for tracked shows
-- **Jellyfin server**: local network Dell OptiPlex, port 8096
-- **Data**: 633+ playback events, 7 users, 12 devices, date range Feb-Apr 2026
-- **Frontend exists**: Vanilla JS SPA at C:\dev\thunderhead\wrapped (dark cinematic theme)
+### Jellyfin Server — 192.168.4.74:8096
+- **Location**: Windows machine (Dell OptiPlex) on local network, static IP via ethernet
+- **Auth**: API key via `JELLYFIN_API_KEY` env var
+- **Requires**: Playback Reporting plugin (provides SQL query endpoint for watch history)
+- **Integration**: `jellyfin-writer` polls the Jellyfin API directly for server info, active sessions, library counts, and new episode detection (via TVmaze)
+
+### Finance Dashboard — ~/dev/finance-dashboard (planned)
+- **Runs via**: Docker Compose (port 5280 frontend, port 8001 API)
+- **Integration**: Will write status JSON to `data/status/finance.json` after each sync cycle
+- **Data to surface**: net worth, sync status per institution, account count, errors
+
+## Environment Variables
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `JELLYFIN_HOST` | Jellyfin server IP | `192.168.4.74` |
+| `JELLYFIN_PORT` | Jellyfin server port | `8096` |
+| `JELLYFIN_API_KEY` | Jellyfin API key for auth | (required) |
+| `STORYGRAPH_STATUS_PATH` | Path to storygraph status.json | `~/dev/storygraph-automation/status/status.json` |
+| `STATUS_DIR` | Shared status JSON directory | `data/status/` (local) or `/data/status` (Docker) |
+| `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:5180,http://localhost:5181` |
+| `STALE_THRESHOLD_S` | Seconds before status is marked stale | `300` |
+| `WRITER_INTERVAL` | Writer polling interval in seconds | `30` |
+| `GAPS_INTERVAL` | Jellyfin episode gap check interval | `21600` (6 hours) |
 
 ## Navigation
 
@@ -128,7 +180,7 @@ Backend: http://localhost:8100 (hardcoded in backend/app.py, auto-kills zombie p
 |--------|------|---------|
 | GET | `/api/health` | Health check |
 | GET | `/api/config` | Full YAML config as JSON |
-| GET | `/api/status` | Poll all data sources, return zone statuses |
+| GET | `/api/status` | Read all status files, return zone statuses |
 | POST | `/api/spaces` | Create new space (multipart: name, background image) |
 | POST | `/api/spaces/{id}/zones` | Create zone with polygon + bot sprite |
 
@@ -136,16 +188,17 @@ Backend: http://localhost:8100 (hardcoded in backend/app.py, auto-kills zombie p
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2026-04-18 | React + TS + Vite frontend | Config-driven component hierarchy (spaces > zones > bots > panels) benefits from React composition. User has React experience. |
-| 2026-04-18 | FastAPI backend | Both existing data sources run FastAPI. Lowest friction. Enables future remote access. |
+| 2026-04-18 | React + TS + Vite frontend | Config-driven component hierarchy (spaces > zones > bots > panels) benefits from React composition. |
+| 2026-04-18 | FastAPI backend | Lowest friction. Enables future remote access. |
 | 2026-04-18 | YAML config over database | No relational data. Config changes are infrequent and version-controllable. |
 | 2026-04-18 | Irregular polygon zones | Background images have non-rectangular rooms. Percentage-based SVG polygons scale with viewport. |
 | 2026-04-18 | 3 bot states (active/idle/error) | Combined idle+sleeping into single idle state — no clear UX distinction. |
 | 2026-04-18 | One bot per project | StoryGraph bot aggregates both Kim and Justin profiles. Keeps the map clean. |
-| 2026-04-18 | Data source adapter pattern | Different APIs have different shapes. Adapters provide a uniform interface. Adding a new instance of an existing type is config-only. New types need a small adapter. |
-| 2026-04-18 | Poll existing APIs, don't rebuild | StoryGraph (port 1200) and Jellyfin (port 1201) already have exactly the data we need. |
-| 2026-04-18 | Sprite animation via direct DOM refs | Calling React setState at 60fps per droid causes unnecessary re-renders. rAF loop updates SVG transform attributes via refs — zero React re-renders during animation. |
-| 2026-04-18 | Downscale large images over tiling | OpenSeadragon/tile pyramids are overkill when ~8000px wide images perform well. Revisit if full-res zoom detail is needed. |
-| 2026-04-18 | Left-click drag for pan | Right-click and middle-click have unavoidable browser side effects (context menus, new tabs). Left-drag with 5px threshold cleanly separates pan from click. |
-| 2026-04-18 | Episode gaps via background thread | Jellyfin analytics API is single-threaded; the `/episodes/gaps` endpoint takes ~60s. Fetching it in the main request path blocks `/status`. A daemon thread fetches gaps independently with a 5-min cache. Status requests use a 5s timeout with cached fallback so they never block. |
-| 2026-04-18 | Single status polling loop | `useProjectStatus` runs in App, not per-SpaceView. All spaces are mounted simultaneously — 3 independent polling loops caused request pileup. One loop with `setTimeout` (not `setInterval`) prevents overlap. |
+| 2026-04-18 | Sprite animation via direct DOM refs | rAF loop updates SVG transform attributes via refs — zero React re-renders during animation. |
+| 2026-04-18 | Downscale large images over tiling | OpenSeadragon/tile pyramids are overkill when ~8000px wide images perform well. |
+| 2026-04-18 | Left-click drag for pan | Right-click and middle-click have unavoidable browser side effects. Left-drag with 5px threshold cleanly separates pan from click. |
+| 2026-04-18 | Single status polling loop | `useProjectStatus` runs in App, not per-SpaceView. One loop with `setTimeout` (not `setInterval`) prevents overlap. |
+| 2026-04-23 | File-based common analytics format | Each project writes a status JSON file. Command center reads files via one generic adapter. Adding a new project = write a writer script + config entry. No per-project adapter code in the command center. |
+| 2026-04-23 | Writer scripts in Docker containers | Each writer runs in its own container with `restart: unless-stopped`. Isolation, independent restart, shared status volume. |
+| 2026-04-23 | Direct Jellyfin API over analytics proxy | Old setup used a separate analytics service (port 1201). New setup hits Jellyfin's native API directly at 192.168.4.74:8096. Eliminates the intermediary. |
+| 2026-04-23 | TVmaze-based new episode detection | Queries Jellyfin Playback Reporting for recently-watched shows, filters to Continuing status, resolves to TVmaze IDs (via TVDB/IMDB), compares aired episodes against Jellyfin library. Only checks latest season + next. Runs every 6 hours, cached in status JSON. Ported from thunderhead/analytics. |

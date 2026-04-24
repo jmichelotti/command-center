@@ -1,5 +1,22 @@
 # Command Center — Changelog
 
+## 2026-04-23
+
+### Session 6 — Linux Migration & Common Analytics Format
+- Migrated from Windows to Linux (linux-main branch)
+- Replaced Windows-specific code (_kill_port PowerShell → fuser, removed C:\ paths)
+- Designed and implemented file-based common analytics format: writer scripts produce JSON status files, single FileAdapter reads them
+- Created StoryGraph writer: reads ~/dev/storygraph-automation/status/status.json, transforms to common format
+- Created Jellyfin writer: polls Jellyfin API at 192.168.4.74:8096 for server info, active sessions, library counts
+- Ported TVmaze-based episode gap detection from thunderhead/analytics: queries Playback Reporting for watched shows, resolves via TVmaze, compares aired episodes (replaces naive numbering-gap algorithm that had 166 false positives)
+- Library counts now use admin user context to match Jellyfin dashboard (was inflated by YouTube library items)
+- Dockerized full stack: multi-stage Dockerfile (Node build + Python runtime), docker-compose with command-center, storygraph-writer, jellyfin-writer services
+- Backend port changed from 8100 to 8200 (configurable via PORT env var)
+- CORS origins configurable via CORS_ORIGINS env var
+- Frontend dist served by FastAPI in production mode
+- Zones cleared for fresh setup on new machine; user recreated Jabba's Palace zones via UI
+- Updated CLAUDE.md with new architecture, env vars, Docker workflow
+
 ## 2026-04-18
 
 ### Session 1 — Phase 1 Complete

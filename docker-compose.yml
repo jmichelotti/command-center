@@ -1,0 +1,54 @@
+services:
+  command-center:
+    build: .
+    container_name: command-center
+    restart: unless-stopped
+    ports:
+      - "8200:8200"
+    env_file:
+      - .env
+    environment:
+      PORT: "8200"
+      STATUS_DIR: /data/status
+      CORS_ORIGINS: "http://localhost:8200,http://localhost:5180"
+    volumes:
+      - status-data:/data/status:ro
+      - ./config:/app/config
+      - ./assets:/app/assets
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8200/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  storygraph-writer:
+    build: .
+    container_name: cc-storygraph-writer
+    restart: unless-stopped
+    entrypoint: ["python", "-m", "writers.storygraph_writer"]
+    env_file:
+      - .env
+    environment:
+      STATUS_DIR: /data/status
+      STORYGRAPH_STATUS_PATH: /storygraph-status/status.json
+      WRITER_INTERVAL: "30"
+    volumes:
+      - status-data:/data/status
+      - ${STORYGRAPH_STATUS_DIR:-~/dev/storygraph-automation/status}:/storygraph-status:ro
+
+  jellyfin-writer:
+    build: .
+    container_name: cc-jellyfin-writer
+    restart: unless-stopped
+    entrypoint: ["python", "-m", "writers.jellyfin_writer"]
+    env_file:
+      - .env
+    environment:
+      STATUS_DIR: /data/status
+      WRITER_INTERVAL: "30"
+      GAPS_INTERVAL: "21600"
+    volumes:
+      - status-data:/data/status
+
+volumes:
+  status-data:

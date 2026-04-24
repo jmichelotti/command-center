@@ -41,12 +41,12 @@ botTypes:
       error: '#ff4444'
 dataSources:
   storygraph:
-    type: storygraph
-    endpoint: http://127.0.0.1:1200/status
+    type: file
+    path: storygraph.json
     pollInterval: 30
   jellyfin:
-    type: jellyfin
-    endpoint: http://127.0.0.1:1201/status
+    type: file
+    path: jellyfin.json
     pollInterval: 15
 spaces:
 - id: jabbas-palace
@@ -55,22 +55,22 @@ spaces:
   nativeWidth: 3900
   nativeHeight: 7500
   zones:
-  - id: storygraph
-    name: StoryGraphAutomation
+  - id: storygraph-automation
+    name: StoryGraph Automation
     polygon:
-    - [10.6, 6.6]
-    - [10.5, 25.9]
-    - [34.5, 26.0]
-    - [34.8, 6.8]
+    - [13.4, 18]
+    - [14, 25.9]
+    - [34.1, 25.9]
+    - [34.3, 18]
     bot: droid
     dataSource: storygraph
-  - id: jellyfin
+  - id: thunderheadflix
     name: ThunderheadFlix
     polygon:
-    - [73.1, 2.3]
-    - [73.0, 17.1]
-    - [91.0, 17.1]
-    - [91.3, 2.1]
+    - [73.4, 2.7]
+    - [73, 17]
+    - [91, 16.9]
+    - [90.9, 2.6]
     bot: protocol-droid
     dataSource: jellyfin
 - id: echo-base
@@ -78,37 +78,10 @@ spaces:
   image: backgrounds/echo-base.jpg
   nativeWidth: 8000
   nativeHeight: 5714
-  zones:
-  - id: storygraph-automation
-    name: StoryGraph Automation
-    polygon:
-    - [69.3, 11.6]
-    - [69.6, 24.9]
-    - [90.5, 22.9]
-    - [90.5, 9.9]
-    bot: droid
-    dataSource: storygraph
-  - id: thunderheadflix
-    name: ThunderheadFlix
-    polygon:
-    - [51.5, 49.9]
-    - [51.4, 63.6]
-    - [64.1, 63.7]
-    - [63.9, 49.8]
-    bot: r5-j2
-    dataSource: jellyfin
+  zones: []
 - id: falcon
   name: Falcon
   image: backgrounds/falcon.jpg
   nativeWidth: 9000
   nativeHeight: 9000
-  zones:
-  - id: storygraph-automation
-    name: StoryGraph Automation
-    polygon:
-    - [57.4, 38.4]
-    - [66.4, 46.9]
-    - [71, 44]
-    - [58.3, 34.4]
-    bot: droid
-    dataSource: storygraph
+  zones: []

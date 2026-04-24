@@ -20,7 +20,8 @@ export interface BotType {
 
 export interface DataSource {
   type: string;
-  endpoint: string;
+  path?: string;
+  endpoint?: string;
   pollInterval: number;
 }
 
