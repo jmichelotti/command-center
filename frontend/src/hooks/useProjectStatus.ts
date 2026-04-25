@@ -5,6 +5,8 @@ export interface ProjectStatus {
   state: BotState;
   label: string;
   fields: { key: string; value: string }[];
+  updated_at?: string;
+  details?: Record<string, unknown>;
 }
 
 const POLL_INTERVAL_MS = 15_000;

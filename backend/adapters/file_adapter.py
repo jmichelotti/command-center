@@ -47,4 +47,10 @@ async def fetch_status(filename: str) -> dict:
         except (ValueError, TypeError):
             pass
 
-    return {"state": state, "label": label, "fields": fields}
+    result = {"state": state, "label": label, "fields": fields}
+    if updated_at:
+        result["updated_at"] = updated_at
+    details = data.get("details")
+    if details is not None:
+        result["details"] = details
+    return result

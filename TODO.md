@@ -21,6 +21,8 @@
 - [x] Jellyfin bot end-to-end with real data
 
 ## Phase 4 — Polish & Multi-Space
+- [x] Pluggable detail view system (modal/page/panel per zone, component registry)
+- [x] StoryGraph custom detail view (profile cards, progress bars, book grid, activity sparkline)
 - [ ] Refine sci-fi terminal panel UI
 - [x] Multiple space support (tab bar, keyboard shortcuts, all spaces mounted simultaneously)
 - [x] Pan/zoom canvas (scroll-wheel zoom, left-drag pan, fit-to-viewport on load)

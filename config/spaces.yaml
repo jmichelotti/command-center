@@ -64,6 +64,9 @@ spaces:
     - [34.3, 18]
     bot: droid
     dataSource: storygraph
+    detailView:
+      type: modal
+      component: storygraph
   - id: thunderheadflix
     name: ThunderheadFlix
     polygon:

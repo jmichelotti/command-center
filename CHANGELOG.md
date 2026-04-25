@@ -1,5 +1,18 @@
 # Command Center — Changelog
 
+## 2026-04-24
+
+### Session 7 — Custom Detail Views
+- Pluggable detail view system: zones can have custom views (modal, page, or panel) configured in spaces.yaml
+- DetailViewContainer dispatches to custom component or falls back to StatusPanel
+- Component registry maps config keys to React components (extensible pattern)
+- DetailModal shell: backdrop blur, click-outside close, Escape key close, scale-in animation
+- DetailPage shell: full-page overlay with back button
+- StoryGraph custom detail view: profile cards (Justin/Kim) with status, last run, next run; in-progress audiobook progress bars; recent books grid (placeholder); activity sparkline (placeholder)
+- Backend file_adapter now passes `updated_at` and `details` through to the API response
+- Fixed time formatting: timezone offsets stripped from time-only strings (e.g., "23:55:00+00:00" → "23:55:00")
+- TypeScript types extended: `DetailViewConfig` on Zone, `updated_at` and `details` on ProjectStatus
+
 ## 2026-04-23
 
 ### Session 6 — Linux Migration & Common Analytics Format

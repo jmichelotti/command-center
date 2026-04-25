@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Command Center
 
 Personal dev project monitoring dashboard. A top-down Star Wars location image serves as the visual background, with different regions mapped to dev projects. Each project is represented by an animated bot whose behavior reflects real-time project status.
@@ -45,6 +49,24 @@ Common status JSON schema:
 
 Adding a new project integration = write a new writer script (~50-100 lines) + add config entry. No changes to the command center backend.
 
+### Custom Detail Views
+
+Zones can have custom detail views instead of the default `StatusPanel`. Configured in `spaces.yaml` per zone:
+
+```yaml
+detailView:
+  type: modal       # modal | page | panel
+  component: storygraph  # key in the component registry
+```
+
+Architecture:
+- `DetailViewContainer` — dispatcher that checks zone config, routes to custom view or falls back to `StatusPanel`
+- `frontend/src/components/details/registry.ts` — maps component keys (e.g., `storygraph`) to React components
+- `DetailModal` — modal shell with backdrop blur, Escape/click-outside close
+- `DetailPage` — full-page overlay with back button
+
+Adding a new custom detail view = create a React component implementing `DetailViewProps`, register it in `registry.ts`, set `detailView` in `spaces.yaml`.
+
 ### Bot States
 
 | State | Meaning | Visual |
@@ -69,6 +91,7 @@ command-center/
 ├── frontend/                 # React + TypeScript + Vite
 │   └── src/
 │       ├── components/       # React components
+│       │   └── details/      # Custom detail view components + registry
 │       ├── hooks/            # Custom React hooks
 │       └── types/            # TypeScript type definitions
 ├── backend/                  # FastAPI
@@ -124,6 +147,13 @@ JELLYFIN_API_KEY=<key> python3 writers/jellyfin_writer.py
 
 Frontend: http://localhost:5180 (Vite dev server, proxies API to backend)
 Backend: http://localhost:8200
+
+### Build & Lint
+
+```bash
+cd frontend && npm run build    # TypeScript check + Vite production build
+cd frontend && npm run lint     # ESLint
+```
 
 ## External Dependencies
 
@@ -202,3 +232,4 @@ Backend: http://localhost:8200
 | 2026-04-23 | Writer scripts in Docker containers | Each writer runs in its own container with `restart: unless-stopped`. Isolation, independent restart, shared status volume. |
 | 2026-04-23 | Direct Jellyfin API over analytics proxy | Old setup used a separate analytics service (port 1201). New setup hits Jellyfin's native API directly at 192.168.4.74:8096. Eliminates the intermediary. |
 | 2026-04-23 | TVmaze-based new episode detection | Queries Jellyfin Playback Reporting for recently-watched shows, filters to Continuing status, resolves to TVmaze IDs (via TVDB/IMDB), compares aired episodes against Jellyfin library. Only checks latest season + next. Runs every 6 hours, cached in status JSON. Ported from thunderhead/analytics. |
+| 2026-04-24 | Pluggable detail views per zone | Default `StatusPanel` is too generic for rich data like StoryGraph profiles. Registry pattern maps config keys to React components. Three shells: modal (backdrop blur, Escape close), page (full overlay), panel (StatusPanel fallback). Config-driven via `detailView` in `spaces.yaml`. |

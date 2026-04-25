@@ -3,7 +3,7 @@ import type { Space, Config } from "../types/config";
 import { ZoneOverlay } from "./ZoneOverlay";
 import { Bot } from "./Bot";
 import { DebugPanel } from "./DebugPanel";
-import { StatusPanel } from "./StatusPanel";
+import { DetailViewContainer } from "./DetailViewContainer";
 import { CreateZoneModal } from "./CreateZoneModal";
 import type { ProjectStatus } from "../hooks/useProjectStatus";
 
@@ -291,8 +291,8 @@ export function SpaceView({ space, config, statuses, onReloadConfig, isActive }:
       </div>
 
       {selectedZone && statuses[selectedZone.id] && (
-        <StatusPanel
-          zoneName={selectedZone.name}
+        <DetailViewContainer
+          zone={selectedZone}
           status={statuses[selectedZone.id]}
           onClose={() => setSelectedZoneId(null)}
         />

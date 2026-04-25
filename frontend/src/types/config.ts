@@ -34,12 +34,18 @@ export interface Space {
   zones: Zone[];
 }
 
+export interface DetailViewConfig {
+  type: "modal" | "page" | "panel";
+  component: string;
+}
+
 export interface Zone {
   id: string;
   name: string;
   polygon: [number, number][];
   bot: string;
   dataSource: string;
+  detailView?: DetailViewConfig;
 }
 
 export type BotState = "active" | "idle" | "error";
